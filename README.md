@@ -1,6 +1,6 @@
 # Idea.
  Packgae idea is to separate static errors,
- that are used to determine behaviour if error happened.
+ that are used to determine behavior if error happened.
 
  From context-of-error, like dynamic data, trace and/or messages,
  that, on the other hand, used for logging and debugging.
@@ -11,9 +11,29 @@
 
  ---
 
+# Usage
+ Every exported bit are documented very clearly.
+
+
+    return nil, zeroerror.WithMsg(ErrSomethingBadHappened,"details")
+
+    zerologger.Debug().Func(TryInsert(err)).Send()
+
+ ---
 # Compatability.
 
- Partially compatable with [errors] package, errors.As() not supported.
+ Fully compatable with [errors] package.  
+ All compatable logic covered with succesful tests.  
+
+ ---
+
+# Test,Linter,Coverage.
+ 
+    make lint
+    make test
+    make coverage
+
+ Coverage 90+%.
 
  ---
 

@@ -1,5 +1,5 @@
 // Packgae idea is to separate static errors,
-// that are used to determine behaviour if error happened.
+// that are used to determine behavior if error happened.
 //
 // From context-of-error, like dynamic data, trace and/or messages,
 // that, on the other hand, used for logging and debugging.
@@ -21,11 +21,16 @@ import (
 )
 
 const (
-	FirstKey   = "root"
+	// Default key for first message.
+	FirstKey = "root"
+	// Defaylt key for string message.
 	MessageKey = "msg"
-	ValueKey   = "data"
-	ErrorKey   = "error"
+	// Default key for value message.
+	ValueKey = "data"
+	// Default key for error.
+	ErrorKey = "error"
 
+	// Default key when dictionary logged out.
 	InsertedKey = "errcontext"
 )
 
@@ -38,6 +43,20 @@ type ZeroError struct {
 	event *zerolog.Event
 }
 
+// New returns ready to use ZeroError.
+//
+// Fields:
+//   - err filed initialized with 0 len string error, not nil.
+//   - event field initialized with ready-to-use zerolog.Dict(), not nil.
+//
+// # It is better for maintenance and readability to use [With*] functions !
+func New() *ZeroError {
+	return &ZeroError{
+		err:   errosempty,
+		event: zerolog.Dict(),
+	}
+}
+
 // # WithMsg adds msg to newly initialized ZeroError.
 //
 // If called on already initialized [ZeroError] then [WithMsg] just add more info.
@@ -46,9 +65,9 @@ type ZeroError struct {
 //   - if message is first in event -- it will be with [FirstKey] key.
 //   - added msg will be with [MessageKey] key.
 func WithMsg(err error, msg string) *ZeroError {
-	ze, ok := err.(*ZeroError)
 
-	if alreadyInitialized(ze, ok) {
+	ze := New()
+	if errors.As(err, ze) {
 		ze.event = ze.event.Str(MessageKey, msg)
 
 		return ze
@@ -74,8 +93,8 @@ func WithMsg(err error, msg string) *ZeroError {
 //   - added val will be with [ValueKey] key.
 func WithVal(err error, val any) *ZeroError {
 
-	ze, ok := err.(*ZeroError)
-	if alreadyInitialized(ze, ok) {
+	ze := New()
+	if errors.As(err, ze) {
 		ze.event = ze.event.Any(ValueKey, val)
 
 		return ze
@@ -99,11 +118,13 @@ func WithVal(err error, val any) *ZeroError {
 //     insted of [FirstKey] key.
 func WithKeyVal(err error, key string, val any) *ZeroError {
 
-	ze, ok := err.(*ZeroError)
-	if alreadyInitialized(ze, ok) {
+	ze := New()
+	if errors.As(err, ze) {
+
 		ze.event = ze.event.Any(key, val)
 
 		return ze
+
 	}
 
 	event := zerolog.Dict().Any(key, val)
@@ -122,10 +143,10 @@ func WithKeyVal(err error, key string, val any) *ZeroError {
 // It is guaranteed:
 //   - even if this is the rirst message of the event, key will be used,
 //     insted of [FirstKey] key.
-func WithKeyMsg(err error, key string, msg string) *ZeroError {
+func WithKeyMsg(err error, key, msg string) *ZeroError {
 
-	ze, ok := err.(*ZeroError)
-	if alreadyInitialized(ze, ok) {
+	ze := New()
+	if errors.As(err, ze) {
 		ze.event = ze.event.Str(key, msg)
 
 		return ze
@@ -149,12 +170,12 @@ func WithKeyMsg(err error, key string, msg string) *ZeroError {
 //
 // If error is not an ZeroError -- returned function is a no-op.
 func TryInsert(err error) func(*zerolog.Event) {
-	ze, ok := err.(*ZeroError)
-	if !ok {
-		return noop
+	ze := New()
+	if errors.As(err, ze) {
+		return ze.Insert
 	}
 
-	return ze.Insert
+	return noop
 }
 
 // Insert will add static error, followed by context to zerolog.Event.
@@ -167,30 +188,6 @@ func (ze *ZeroError) Insert(e *zerolog.Event) {
 // Pipelining supported.
 func (ze *ZeroError) Join(err error) *ZeroError {
 	ze.err = errors.Join(ze.err, err)
+
 	return ze
 }
-
-// ==== Compatablility functions ==== .
-
-// Error implements error interface.
-func (ze *ZeroError) Error() string {
-	return ze.err.Error()
-}
-
-// Unwrap -- errors package compatability
-func (ze *ZeroError) Unwrap() error {
-	return ze.err
-}
-
-// Is -- errors package compatability
-func (ze *ZeroError) Is(err error) bool {
-	return (ze == err) || errors.Is(ze.err, err)
-}
-
-// ==== Internal functions ==== .
-
-func alreadyInitialized(ze *ZeroError, ok bool) bool {
-	return ze != nil && ok
-}
-
-func noop(e *zerolog.Event) {}
