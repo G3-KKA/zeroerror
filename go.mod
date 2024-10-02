@@ -1,4 +1,4 @@
-module zeroerror
+module github.com/G3-KKA/zeroerror
 
 go 1.23.1
 
